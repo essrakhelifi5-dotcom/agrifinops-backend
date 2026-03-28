@@ -1,35 +1,62 @@
-import { Controller, Get, Query, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import {
+  Controller,
+  Get,
+  Query,
+  Res,
+  Req,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
+import type { Response, Request } from 'express';
+import { JwtService } from '@nestjs/jwt';
 import { QuickbooksService } from './quickbooks.service';
-import { UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import type { Request } from 'express';
+
 @Controller('quickbooks')
 export class QuickbooksController {
-  constructor(private readonly qbService: QuickbooksService) {}
+  constructor(
+    private readonly qbService: QuickbooksService,
+    private readonly jwtService: JwtService, // ← Ajouté
+  ) {}
 
+  // ✅ Plus de @UseGuards — vérification manuelle du token en query param
   @Get('auth')
-  connect(@Res() res: Response) {
-    const url = this.qbService.getAuthorizationUrl();
-    return res.redirect(url);
+  connect(@Query('token') token: string, @Res() res: Response) {
+    if (!token) {
+      throw new UnauthorizedException('Token manquant');
+    }
+
+    try {
+      const payload = this.jwtService.verify(token, {
+        secret: process.env.JWT_SECRET,
+      });
+
+      const userId = payload.sub;
+      const url = this.qbService.getAuthorizationUrl(userId);
+      return res.redirect(url);
+    } catch {
+      throw new UnauthorizedException('Token invalide ou expiré');
+    }
   }
-@UseGuards(JwtAuthGuard)
-@Get('callback')
-async callback(@Query() query: any, @Req() req: Request) {
 
+  // ✅ Pas de guard nécessaire ici — appelé par QuickBooks directement
+  @Get('callback')
+async callback(@Query() query: any, @Res() res: Response) {
   const { code, realmId, state } = query;
-
-   const userId = (req as any).user.id;;
-
-  return this.qbService.exchangeCode(code, realmId, state, userId);
+  const userId = state.split('_')[0];
+  
+  // Échange le code et sauvegarde le token
+  await this.qbService.exchangeCode(code, realmId, state, userId);
+  
+  // Redirige vers le dashboard après connexion réussie
+  return res.redirect('http://localhost:3000/dashboard/Ceo');
 }
 
+  // ✅ Guard normal car appelé depuis le frontend avec header Authorization
   @UseGuards(JwtAuthGuard)
-@Get('company-info')
-async getCompanyInfo(@Req() req: Request) {
-
-  const userId = (req as any).user.id;
-
-  return this.qbService.getCompanyInfo(userId);
-}
+  @Get('company-info')
+  async getCompanyInfo(@Req() req: Request) {
+    const userId = (req as any).user.id;
+    return this.qbService.getCompanyInfo(userId);
+  }
 }

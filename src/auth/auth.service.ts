@@ -35,7 +35,7 @@ export class AuthService {
 
     // Génère le token JWT
     const token = this.jwtService.sign({ 
-      userId: user.id, 
+      sub: user.id, 
       email: user.email 
     });
 
@@ -69,7 +69,7 @@ export class AuthService {
 
     // Génère le token JWT
     const token = this.jwtService.sign({ 
-      userId: user.id, 
+      sub: user.id, 
       email: user.email 
     });
 

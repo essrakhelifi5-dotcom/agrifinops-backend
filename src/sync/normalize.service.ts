@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class NormalizeService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async normalizeAll(userId: string) {
     const invoicesResult = await this.normalizeInvoices(userId);
@@ -15,8 +15,9 @@ export class NormalizeService {
       expenses: expensesResult,
       categories: categoriesResult,
     };
-  }
 
+  }
+  //Cette fonction parcourt les factures d’un utilisateur, corrige les données manquantes comme le nom ou la date d’échéance, calcule automatiquement le statut de la facture, puis met à jour la base de données.
   async normalizeInvoices(userId: string) {
     const invoices = await this.prisma.invoice.findMany({
       where: { userId },
@@ -32,10 +33,11 @@ export class NormalizeService {
       }
 
       if (!inv.dueDate) {
-        const due = new Date(inv.issueDate);
-        due.setDate(due.getDate() + 30);
-        updates.dueDate = due;
+        const due = new Date(inv.issueDate); // on prend la date de création de la facture et on le transforme en objet date
+        due.setDate(due.getDate() + 30); // setDate():on modifie la date ; due.getDate() = jour actuel de la date
+        updates.dueDate = due; //updates = objet qui contient les corrections on met la nouvelle date dedans
       }
+
 
       const dueDate = inv.dueDate || updates.dueDate;
       const balance = Number(inv.balance);
@@ -46,6 +48,23 @@ export class NormalizeService {
         updates.status = 'OVERDUE';
       } else {
         updates.status = 'UNPAID';
+      }
+
+      // Vérifie s’il y a des modifications dans l’objet "updates"
+      // Object.keys(updates) retourne les champs modifiés
+      // Si la taille > 0, cela signifie qu’au moins une correction a été faite
+      if (Object.keys(updates).length > 0) {
+
+        // Met à jour la facture dans la base de données
+        // "where" permet de trouver la facture par son id
+        // "data" contient les nouvelles valeurs corrigées
+        await this.prisma.invoice.update({
+          where: { id: inv.id },
+          data: updates,
+        });
+
+        // Incrémente le compteur de factures corrigées
+        fixed++;
       }
 
       if (Object.keys(updates).length > 0) {
@@ -123,46 +142,57 @@ export class NormalizeService {
     return { message: '✅ TransactionLines recatégorisées', recategorized };
   }
 
-  private categorize(rawCategory: string): string {
-    const lower = rawCategory.toLowerCase();
+ // Fonction qui transforme une catégorie brute (texte) en catégorie standardisée
+private categorize(rawCategory: string): string {
 
-    if (lower.includes('fuel') || lower.includes('transport') ||
-        lower.includes('shipping') || lower.includes('automobile') ||
-        lower.includes('vehicle') || lower.includes('gas') ||
-        lower.includes('delivery') || lower.includes('freight'))
-      return 'Logistics: Fuel & Transport';
+  // Met le texte en minuscule pour faciliter les comparaisons
+  const lower = rawCategory.toLowerCase();
 
-    if (lower.includes('dairy') || lower.includes('meat') ||
-        lower.includes('produce') || lower.includes('inventory') ||
-        lower.includes('material') || lower.includes('equipment rental') ||
-        lower.includes('supplies'))
-      return 'Inventory: Supplies & Materials';
+  // Si le texte contient des mots liés au transport ou carburant
+  if (lower.includes('fuel') || lower.includes('transport') ||
+      lower.includes('shipping') || lower.includes('automobile') ||
+      lower.includes('vehicle') || lower.includes('gas') ||
+      lower.includes('delivery') || lower.includes('freight'))
+    return 'Logistics: Fuel & Transport';
 
-    if (lower.includes('salary') || lower.includes('payroll') ||
-        lower.includes('wage') || lower.includes('job expenses') ||
-        lower.includes('labor') || lower.includes('staff'))
-      return 'Labor: Salaries & Job Expenses';
+  // Si le texte contient des mots liés aux stocks ou matériaux
+  if (lower.includes('dairy') || lower.includes('meat') ||
+      lower.includes('produce') || lower.includes('inventory') ||
+      lower.includes('material') || lower.includes('equipment rental') ||
+      lower.includes('supplies'))
+    return 'Inventory: Supplies & Materials';
 
-    if (lower.includes('rent') || lower.includes('utilities') ||
-        lower.includes('electricity') || lower.includes('maintenance') ||
-        lower.includes('repair') || lower.includes('landscaping') ||
-        lower.includes('sprinkler') || lower.includes('fountain') ||
-        lower.includes('cleaning') || lower.includes('office'))
-      return 'Operations: Overhead';
+  // Si le texte contient des mots liés aux salaires ou employés
+  if (lower.includes('salary') || lower.includes('payroll') ||
+      lower.includes('wage') || lower.includes('job expenses') ||
+      lower.includes('labor') || lower.includes('staff'))
+    return 'Labor: Salaries & Job Expenses';
 
-    if (lower.includes('marketing') || lower.includes('advertising') ||
-        lower.includes('promotion') || lower.includes('consulting'))
-      return 'Marketing & Sales';
+  // Si le texte contient des mots liés aux charges (loyer, électricité, etc.)
+  if (lower.includes('rent') || lower.includes('utilities') ||
+      lower.includes('electricity') || lower.includes('maintenance') ||
+      lower.includes('repair') || lower.includes('landscaping') ||
+      lower.includes('sprinkler') || lower.includes('fountain') ||
+      lower.includes('cleaning') || lower.includes('office'))
+    return 'Operations: Overhead';
 
-    if (lower.includes('meals') || lower.includes('entertainment') ||
-        lower.includes('lunch') || lower.includes('dinner') ||
-        lower.includes('restaurant'))
-      return 'Meals & Entertainment';
+  // Si le texte contient des mots liés au marketing
+  if (lower.includes('marketing') || lower.includes('advertising') ||
+      lower.includes('promotion') || lower.includes('consulting'))
+    return 'Marketing & Sales';
 
-    if (lower.includes('legal') || lower.includes('professional') ||
-        lower.includes('accounting') || lower.includes('lawyer'))
-      return 'Legal & Professional Fees';
+  // Si le texte contient des mots liés aux repas ou divertissement
+  if (lower.includes('meals') || lower.includes('entertainment') ||
+      lower.includes('lunch') || lower.includes('dinner') ||
+      lower.includes('restaurant'))
+    return 'Meals & Entertainment';
 
-    return 'Other';
-  }
+  // Si le texte contient des mots liés au juridique ou comptabilité
+  if (lower.includes('legal') || lower.includes('professional') ||
+      lower.includes('accounting') || lower.includes('lawyer'))
+    return 'Legal & Professional Fees';
+
+  // Si aucune condition ne correspond, on retourne "Other"
+  return 'Other';
+}
 }

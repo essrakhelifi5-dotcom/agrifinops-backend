@@ -44,11 +44,18 @@ export class QuickbooksController {
 async callback(@Query() query: any, @Res() res: Response) {
   const { code, realmId, state } = query;
   const userId = state.split('_')[0];
-  
+
   // Échange le code et sauvegarde le token
   await this.qbService.exchangeCode(code, realmId, state, userId);
-  
-  // Redirige vers le dashboard après connexion réussie
+
+  // Récupère le rôle de l'utilisateur depuis la DB
+  const user = await this.qbService.getUserById(userId);
+
+  // Redirige selon le rôle
+  if (user?.role === 'Manager') {
+    return res.redirect('http://localhost:3000/dashboard/Manager');
+  }
+
   return res.redirect('http://localhost:3000/dashboard/Ceo');
 }
 

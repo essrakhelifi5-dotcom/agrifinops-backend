@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { QuickbooksService } from '../quickbooks/quickbooks.service';
 import axios from 'axios';
 
 @Injectable()
@@ -8,18 +9,16 @@ export class SyncService {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
+    private qbService: QuickbooksService,
   ) {}
 
   // ─────────────────────────────────────────────
-  // Méthode utilitaire : récupère le token valide depuis la DB
+  // Méthode utilitaire : récupère le token valide
+  // Utilise QuickbooksService pour refresh auto si expiré
   // ─────────────────────────────────────────────
   private async getValidToken(userId: string) {
-    const tokenData = await this.prisma.oAuthToken.findUnique({
-      where: { userId },
-    });
-    if (!tokenData) throw new Error('Non connecté à QuickBooks.');
-    if (new Date() > tokenData.expiresAt) throw new Error('Token expiré.');
-    return tokenData;
+    // ← Utilise qbService qui fait le refresh automatique
+    return this.qbService.refreshTokenIfNeeded(userId);
   }
 
   // ─────────────────────────────────────────────
@@ -49,31 +48,26 @@ export class SyncService {
     let updated = 0;
 
     for (const inv of invoices) {
-      // Vérifie si la facture existe déjà via qbId + userId
       const existing = await this.prisma.invoice.findFirst({
         where: { qbId: inv.Id, userId },
       });
 
-      // Détermine le statut
       const status =
         Number(inv.Balance) === 0 ? 'PAID' :
         inv.DueDate && new Date(inv.DueDate) < new Date() ? 'OVERDUE' : 'UNPAID';
 
       if (existing) {
-        // Met à jour la facture existante
         await this.prisma.invoice.update({
           where: { id: existing.id },
           data: {
             totalAmount: inv.TotalAmt,
             balance: inv.Balance,
             status,
-            // dueDate peut être undefined si absent — on ne le met à jour que si présent
             ...(inv.DueDate && { dueDate: new Date(inv.DueDate) }),
           },
         });
         updated++;
       } else {
-        // Crée une nouvelle facture
         await this.prisma.invoice.create({
           data: {
             qbId: inv.Id,
@@ -84,7 +78,6 @@ export class SyncService {
             balance: inv.Balance,
             status,
             userId,
-            // dueDate optionnel
             ...(inv.DueDate && { dueDate: new Date(inv.DueDate) }),
           },
         });
@@ -117,13 +110,11 @@ export class SyncService {
     let updated = 0;
 
     for (const exp of expenses) {
-      // Vérifie si la dépense existe déjà
       const existing = await this.prisma.expense.findFirst({
         where: { qbId: exp.Id, userId },
       });
 
       if (existing) {
-        // Met à jour la dépense existante
         await this.prisma.expense.update({
           where: { id: existing.id },
           data: {
@@ -133,20 +124,17 @@ export class SyncService {
         });
         updated++;
       } else {
-        // Crée la dépense
         const newExpense = await this.prisma.expense.create({
           data: {
             qbId: exp.Id,
             expenseDate: new Date(exp.TxnDate),
             amount: exp.TotalAmt,
             description: exp.PrivateNote || 'Expense',
-            // vendorName optionnel
             ...(exp.EntityRef?.name && { vendorName: exp.EntityRef.name }),
             userId,
           },
         });
 
-        // Catégorise chaque ligne de la dépense
         const lines = exp.Line || [];
         for (const line of lines) {
           if (!line.Amount) continue;
@@ -155,7 +143,6 @@ export class SyncService {
             line.AccountBasedExpenseLineDetail?.AccountRef?.name || 'Other';
           const categoryName = this.categorize(rawCategory);
 
-          // Trouve ou crée la catégorie
           let category = await this.prisma.category.findFirst({
             where: { name: categoryName },
           });
@@ -166,7 +153,6 @@ export class SyncService {
             });
           }
 
-          // Crée la ligne de transaction
           await this.prisma.transactionLine.create({
             data: {
               description: line.Description || rawCategory,
@@ -205,14 +191,12 @@ export class SyncService {
     let created = 0;
 
     for (const pay of payments) {
-      // Vérifie si le paiement existe déjà
       const existing = await this.prisma.payment.findFirst({
         where: { qbId: pay.Id },
       });
 
       if (existing) continue;
 
-      // Cherche la facture liée
       const qbInvoiceId = pay.Line?.[0]?.LinkedTxn?.[0]?.TxnId;
       if (!qbInvoiceId) continue;
 
@@ -222,7 +206,6 @@ export class SyncService {
 
       if (!invoice) continue;
 
-      // Crée le paiement
       await this.prisma.payment.create({
         data: {
           qbId: pay.Id,
@@ -244,40 +227,63 @@ export class SyncService {
 
   // ─────────────────────────────────────────────
   // SYNC COMPLÈTE : Lance les 3 syncs en séquence
+  // Refresh automatique du token si expiré
   // ─────────────────────────────────────────────
   async syncAll(userId: string) {
-    const invoicesResult = await this.syncInvoices(userId);
-    const expensesResult = await this.syncExpenses(userId);
-    const paymentsResult = await this.syncPayments(userId);
+    try {
+      // ── Refresh token automatiquement si expiré ──
+      await this.qbService.refreshTokenIfNeeded(userId);
 
-    return {
-      invoices: invoicesResult,
-      expenses: expensesResult,
-      payments: paymentsResult,
-    };
+      const invoicesResult = await this.syncInvoices(userId);
+      const expensesResult = await this.syncExpenses(userId);
+      const paymentsResult = await this.syncPayments(userId);
+
+      return {
+        invoices: invoicesResult,
+        expenses: expensesResult,
+        payments: paymentsResult,
+      };
+    } catch (error:any) {
+      console.error(`❌ Sync échouée pour userId ${userId}:`, error.message);
+      throw error;
+    }
   }
 
   // ─────────────────────────────────────────────
-  // CATÉGORISATION : Mappe les catégories brutes QuickBooks
-  // vers les 5 catégories internes (sera remplacé par IA Python)
+  // CATÉGORISATION : Mappe les catégories brutes
   // ─────────────────────────────────────────────
   private categorize(rawCategory: string): string {
     const lower = rawCategory.toLowerCase();
 
-    if (lower.includes('fuel') || lower.includes('transport') || lower.includes('shipping'))
+    if (lower.includes('fuel') || lower.includes('transport') ||
+        lower.includes('shipping') || lower.includes('automobile'))
       return 'Logistics: Fuel & Transport';
 
-    if (lower.includes('dairy') || lower.includes('meat') || lower.includes('produce'))
-      return 'Inventory: Food Products';
+    if (lower.includes('dairy') || lower.includes('meat') ||
+        lower.includes('produce') || lower.includes('material') ||
+        lower.includes('job expenses'))
+      return 'Inventory: Supplies & Materials';
 
-    if (lower.includes('salary') || lower.includes('payroll') || lower.includes('wage'))
-      return 'Labor: Salaries';
+    if (lower.includes('salary') || lower.includes('payroll') ||
+        lower.includes('wage') || lower.includes('labor'))
+      return 'Labor: Salaries & Job Expenses';
 
-    if (lower.includes('rent') || lower.includes('utilities') || lower.includes('electricity'))
+    if (lower.includes('rent') || lower.includes('utilities') ||
+        lower.includes('electricity') || lower.includes('maintenance') ||
+        lower.includes('repair') || lower.includes('landscaping'))
       return 'Operations: Overhead';
 
-    if (lower.includes('marketing') || lower.includes('advertising'))
+    if (lower.includes('marketing') || lower.includes('advertising') ||
+        lower.includes('consulting'))
       return 'Marketing & Sales';
+
+    if (lower.includes('meals') || lower.includes('entertainment') ||
+        lower.includes('lunch') || lower.includes('restaurant'))
+      return 'Meals & Entertainment';
+
+    if (lower.includes('legal') || lower.includes('professional') ||
+        lower.includes('accounting'))
+      return 'Legal & Professional Fees';
 
     return 'Other';
   }

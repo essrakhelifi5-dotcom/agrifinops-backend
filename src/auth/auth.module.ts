@@ -4,6 +4,8 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtStrategy } from './jwt.strategy';
+import { MailerModule } from '@nestjs-modules/mailer'; // ✅ IMPORT
+
 
 @Module({
   imports: [

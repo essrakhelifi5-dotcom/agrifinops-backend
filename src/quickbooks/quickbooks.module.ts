@@ -10,7 +10,9 @@ import { PrismaService } from '../prisma/prisma.service';
       secret: process.env.JWT_SECRET,
     }),
   ],
+  exports: [QuickbooksService],
   controllers: [QuickbooksController],
   providers: [QuickbooksService, PrismaService],
+
 })
-export class QuickbooksModule {}
+export class QuickbooksModule { }

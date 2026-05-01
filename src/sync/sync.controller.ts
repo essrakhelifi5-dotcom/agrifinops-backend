@@ -1,6 +1,7 @@
 import { Controller, Post, UseGuards, Req } from '@nestjs/common';
 import { SyncService } from './sync.service';
 import { NormalizeService } from './normalize.service';
+import { CronService } from './cron.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { Request } from 'express';
 
@@ -9,6 +10,7 @@ export class SyncController {
   constructor(
     private readonly syncService: SyncService,
     private readonly normalizeService: NormalizeService,
+    private readonly cronService: CronService,
   ) {}
 
   // ─────────────────────────────────────────────
@@ -54,12 +56,22 @@ export class SyncController {
 
   // ─────────────────────────────────────────────
   // POST /sync/normalize
-  // Nettoie et normalise toutes les données en DB
   // ─────────────────────────────────────────────
   @UseGuards(JwtAuthGuard)
   @Post('normalize')
   async normalize(@Req() req: Request) {
     const userId = (req as any).user.id;
     return this.normalizeService.normalizeAll(userId);
+  }
+
+  // ─────────────────────────────────────────────
+  // POST /sync/trigger
+  // Déclenche la sync via BullMQ manuellement
+  // ─────────────────────────────────────────────
+  @UseGuards(JwtAuthGuard)
+  @Post('trigger')
+  async triggerSync(@Req() req: Request) {
+    const userId = (req as any).user.id;
+    return this.cronService.triggerSyncNow(userId);
   }
 }

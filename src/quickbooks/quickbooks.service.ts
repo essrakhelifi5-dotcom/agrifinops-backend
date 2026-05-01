@@ -232,4 +232,19 @@ export class QuickbooksService {
 
     return response.data;
   }
+
+
+
+
+// ── Méthode publique pour refresh depuis SyncService ──
+async refreshTokenIfNeeded(userId: string) {
+  return this.getValidToken(userId);
+}
+  
+
+  async getUserById(userId: string) {
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+  });
+}
 }

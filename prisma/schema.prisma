@@ -13,9 +13,12 @@ model User {
   email      String      @unique
   password   String
   role       String
-  expenses   Expense[]
+  isActive  Boolean  @default(true)  
+  createdAt DateTime @default(now()) 
   invoices   Invoice[]
+  expenses Expense[]
   oauthToken OAuthToken?
+
 }
 
 model OAuthToken {
@@ -84,4 +87,16 @@ model Category {
   id               String            @id @default(uuid())
   name             String            @unique
   transactionLines TransactionLine[]
+}
+// ── Ajoute ce model à la fin du fichier ──
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email, code])
 }

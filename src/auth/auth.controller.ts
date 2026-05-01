@@ -7,20 +7,15 @@ export class AuthController {
 
   @Post('signup')
   async signup(
-    @Body() body: { name: string; email: string; password: string; role?: string },
+    @Body() body: { name: string; email: string; password: string; role: string },
   ) {
-    return this.authService.signup(
-      body.name, 
-      body.email, 
-      body.password, 
-      body.role || 'user'
-    );
+    return this.authService.signup(body.name, body.email, body.password, body.role || 'User');
   }
 
   @Post('login')
-  async login(
-    @Body() body: { email: string; password: string },
-  ) {
-    return this.authService.login(body.email, body.password);
+  async login(@Body() body: { email: string; password: string }) {
+    // ✅ CORRECTION : validateUser d'abord, puis login avec le user retourné
+    const user = await this.authService.validateUser(body.email, body.password);
+    return this.authService.login(user);
   }
 }

@@ -6,7 +6,7 @@ async function bootstrap() {
 
   // Active CORS pour permettre les requêtes du frontend
 app.enableCors({
-  origin: '*',
+  origin: 'https://agrifinops-frontend.vercel.app',
   methods: 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
   allowedHeaders: '*',
 });

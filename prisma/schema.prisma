@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String      @id @default(uuid())
+  name       String
+  email      String      @unique
+  password   String
+  role       String
+  isActive  Boolean  @default(true)  
+  createdAt DateTime @default(now())
+  invoices   Invoice[]
+  expenses Expense[]
+  oauthToken OAuthToken?
+
+}
+
+model OAuthToken {
+  id           String   @id @default(uuid())
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  userId       String   @unique
+  realmId      String
+  user         User     @relation(fields: [userId], references: [id])
+}
+
+model Invoice {
+  id           String    @id @default(uuid())
+  docNumber    String
+  issueDate    DateTime
+  dueDate      DateTime?
+  totalAmount  Decimal   @db.Decimal(12, 2)
+  balance      Decimal   @db.Decimal(12, 2)
+  status       String
+  customerName String
+  qbId         String
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  payments     Payment[]
+
+  @@unique([qbId, userId])
+}
+
+model Payment {
+  id          String   @id @default(uuid())
+  paymentDate DateTime
+  amount      Decimal  @db.Decimal(12, 2)
+  method      String
+  invoiceId   String
+  qbId        String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+}
+
+model Expense {
+  id               String            @id @default(uuid())
+  expenseDate      DateTime
+  amount           Decimal           @db.Decimal(12, 2)
+  description      String
+  qbId             String
+  userId           String
+  vendorName       String?
+  user             User              @relation(fields: [userId], references: [id])
+  transactionLines TransactionLine[]
+
+  @@unique([qbId, userId])
+}
+
+model TransactionLine {
+  id          String   @id @default(uuid())
+  description String
+  amount      Decimal  @db.Decimal(12, 2)
+  rawCategory String
+  expenseId   String?
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  expense     Expense? @relation(fields: [expenseId], references: [id])
+}
+
+model Category {
+  id               String            @id @default(uuid())
+  name             String            @unique
+  transactionLines TransactionLine[]
+}
+// ── Ajoute ce model à la fin du fichier ──
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email, code])
+}

@@ -8,7 +8,7 @@ async function bootstrap() {
   app.enableCors({
       origin: [
     'http://localhost:3000', // local frontend
-    'https://agrifinops-frontend.vercel.app/', // 🔥 your Vercel frontend
+    'https://agrifinops-frontend.vercel.app', // 🔥 your Vercel frontend
   ],
 
     credentials: true,

@@ -1,3 +1,6 @@
+//Query : récupère les paramètres dans l’URL après ?
+//Res : permet d’utiliser directement la réponse Express.
+//Req : permet d’accéder à la requête Express.
 import {
   Controller,
   Get,
@@ -19,19 +22,23 @@ export class QuickbooksController {
     private readonly jwtService: JwtService, 
   ) {}
 
-  // ✅ Plus de @UseGuards — vérification manuelle du token en query param
+  //  Plus de @UseGuards — vérification manuelle du token en query param
   @Get('auth')
+  //Récupère la valeur du paramètre token dans l’URL et la réponse Express. 
+  //reponse express pour faire une redirection après.
   connect(@Query('token') token: string, @Res() res: Response) {
     if (!token) {
       throw new UnauthorizedException('Token manquant');
     }
-
+    
     try {
+      //Cette ligne vérifie que le token JWT est valide.
       const payload = this.jwtService.verify(token, {
         secret: process.env.JWT_SECRET,
       });
-
+      //récupère l’identifiant de l’utilisateur depuis le token.
       const userId = payload.sub;
+      //service QuickBooks génére l’URL de connexion QuickBooks.
       const url = this.qbService.getAuthorizationUrl(userId);
       return res.redirect(url);
     } catch {
@@ -41,9 +48,13 @@ export class QuickbooksController {
 
   
   @Get('callback')
+  //Récupère tous les paramètres de l’URL
 async callback(@Query() query: any, @Res() res: Response) {
+  //On extrait trois valeurs depuis les paramètres URL 
   const { code, realmId, state } = query;
+  //On récupère l’id utilisateur depuis state
   const userId = state.split('_')[0];
+
 
   // Échange le code et sauvegarde le token
   await this.qbService.exchangeCode(code, realmId, state, userId);
@@ -59,7 +70,7 @@ async callback(@Query() query: any, @Res() res: Response) {
   return res.redirect('http://localhost:3000/dashboard/Ceo');
 }
 
-  // ✅ Guard normal car appelé depuis le frontend avec header Authorization
+  //  Guard normal car appelé depuis le frontend avec header Authorization
   @UseGuards(JwtAuthGuard)
   @Get('company-info')
   async getCompanyInfo(@Req() req: Request) {

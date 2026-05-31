@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Response } from 'express';
+//Librairie utilisée pour créer un fichier PDF
 import PDFDocument from 'pdfkit'; 
  
 
@@ -27,6 +28,7 @@ export class AnalyticsService {
   const revenueByMonth: Record<string, number> = {};
   for (const inv of invoices) {
     const month = inv.issueDate.toISOString().slice(0, 7);
+    //additionne les revenus
     revenueByMonth[month] = (revenueByMonth[month] || 0) + Number(inv.totalAmount);
   }
 
@@ -57,7 +59,7 @@ export class AnalyticsService {
       revenue,
       expenses: expensesVal,
       profit,
-      // Dim_Statut → décisionnel
+      //Si le profit est positif ou égal à zéro : le statut est "POSITIF", sinon il est "NEGATIF"
       statut: profit >= 0 ? 'POSITIF' : 'NEGATIF',
       profitPct: revenue > 0 ? Math.round((profit / revenue) * 100) : 0,
     };
@@ -65,6 +67,7 @@ export class AnalyticsService {
 
   return {
     data,
+    //On calcule le total des revenus.
     totalRevenue: Math.round(data.reduce((s, d) => s + d.revenue, 0) * 100) / 100,
     totalExpenses: Math.round(data.reduce((s, d) => s + d.expenses, 0) * 100) / 100,
     totalProfit: Math.round(data.reduce((s, d) => s + d.profit, 0) * 100) / 100,
@@ -161,6 +164,9 @@ async getCategoryMargins(userId: string) {
     const unpaidInvoices = await this.prisma.invoice.findMany({
       where: { userId, status: { not: 'PAID' } },
     });
+    //On calcule le total à recevoir.
+
+//AR veut dire Accounts Receivable (montants encore non payés)
     const totalAR = unpaidInvoices.reduce((sum, inv) => sum + Number(inv.balance), 0);
 
     const allExpenses = await this.prisma.expense.findMany({
@@ -183,7 +189,7 @@ async getCategoryMargins(userId: string) {
       where: { userId },
       orderBy: { issueDate: 'desc' },
     });
-
+   //On calcule la moyenne des dépenses mensuelles.
     const revenueByMonth: Record<string, number> = {};
     for (const inv of allInvoices) {
       const month = inv.issueDate.toISOString().slice(0, 7);
@@ -194,7 +200,7 @@ async getCategoryMargins(userId: string) {
     const monthlyRevenue = monthlyRevenues.length > 0
       ? monthlyRevenues.reduce((a, b) => a + b, 0) / monthlyRevenues.length
       : 0;
-
+    //on calcule les kpi 
     const quickRatio = burnRate > 0
       ? Math.round((monthlyRevenue / burnRate) * 100) / 100
       : 0;
@@ -237,6 +243,7 @@ async getCategoryMargins(userId: string) {
     doc.moveDown(2);
 
     // ── SECTION 1 : Factures ──
+    //On récupère les 50 dernières factures de l’utilisateur.
     const invoices = await this.prisma.invoice.findMany({
       where: { userId },
       orderBy: { issueDate: 'desc' },

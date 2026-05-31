@@ -17,7 +17,7 @@ import { QuickbooksModule } from '../quickbooks/quickbooks.module';
     }),
     // ── Cron Jobs ──
     ScheduleModule.forRoot(),
-    QuickbooksModule, // ← Ajoute
+    QuickbooksModule, 
   ],
   controllers: [SyncController],
   providers: [

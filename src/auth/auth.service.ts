@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException, ConflictException, BadRequestExcepti
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
-import { MailerService } from '@nestjs-modules/mailer'; // ✅ IMPORT MAILER
+import { MailerService } from '@nestjs-modules/mailer'; 
 import { validate } from 'deep-email-validator';
 
 
@@ -12,9 +12,9 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
-        private mailerService: MailerService, // ✅ INJECTION MAILER
+        private mailerService: MailerService, //  INJECTION MAILER
 
-  ) {}
+  ) {} 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // VALIDATION EMAIL RÉEL (domaine + jetable + MX)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -85,9 +85,9 @@ export class AuthService {
   // SIGNUP AVEC EMAIL DE BIENVENUE
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   async signup(name: string, email: string, password: string, role: string) {
-    // 1. ✅ Valider que l'email est réel (BLOQUE si fake)
+    // 1.  Valider que l'email est réel (BLOQUE si fake)
     await this.validateEmailExists(email);
-    // 1️⃣ Vérifier si email existe déjà
+    // 1️ Vérifier si email existe déjà
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
     });
@@ -96,10 +96,10 @@ export class AuthService {
       throw new UnauthorizedException('Cet email est déjà utilisé');
     }
 
-    // 2️⃣ Hacher le mot de passe
+    //  Hacher le mot de passe
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 3️⃣ Créer l'utilisateur
+    //  Créer l'utilisateur
     const user = await this.prisma.user.create({
       data: {
         name,

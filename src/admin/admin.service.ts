@@ -16,7 +16,7 @@ export class AdminService {
         name: true,
         email: true,
         role: true,
-        company: true,  // ✅ AJOUT COMPANY
+        company: true,  
         isActive: true,
         createdAt: true,
         _count: {
@@ -26,9 +26,10 @@ export class AdminService {
           },
         },
       },
+      //Les utilisateurs sont triés du plus récent au plus ancien.
       orderBy: { createdAt: 'desc' },
     });
-
+   //On transforme chaque utilisateur avant de le retourner.
     return users.map(user => ({
       ...user,
       invoiceCount: user._count.invoices,
@@ -44,7 +45,7 @@ export class AdminService {
     email: string,
     password: string,
     role: string,
-    company: string,  // ✅ AJOUT COMPANY
+    company: string,  
   ) {
     // Vérifier email unique
     const existingUser = await this.prisma.user.findUnique({
@@ -69,14 +70,14 @@ export class AdminService {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Créer user avec company
+    //On crée l’utilisateur dans la base de données.
     const user = await this.prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
         role,
-        company,  // ✅ AJOUT COMPANY
+        company,  
         isActive: true,
       },
     });
@@ -93,7 +94,7 @@ export class AdminService {
     name?: string,
     email?: string,
     role?: string,
-    company?: string,  // ✅ AJOUT COMPANY
+    company?: string,  
   ) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
@@ -101,7 +102,8 @@ export class AdminService {
       throw new NotFoundException('Utilisateur non trouvé');
     }
 
-    // Empêcher promotion en Admin si Admin existe
+    // Si on essaie de donner le rôle Admin à quelqu’un qui ne l’était pas déjà,
+    //  on vérifie s’il existe déjà un autre admin.
     if (role === 'Admin' && user.role !== 'Admin') {
       const adminExists = await this.prisma.user.findFirst({
         where: { role: 'Admin', id: { not: userId } },
@@ -119,9 +121,10 @@ export class AdminService {
         ...(name && { name }),
         ...(email && { email }),
         ...(role && { role }),
-        ...(company && { company }),  // ✅ AJOUT COMPANY
+        ...(company && { company }),  
       },
     });
+    //On enlève le mot de passe avant de retourner l’utilisateur cree.
 
     const { password: _, ...result } = updatedUser;
     return result;
@@ -149,6 +152,7 @@ export class AdminService {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // BF5 : Toggle status
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //Méthode pour changer le statut actif/inactif d’un utilisateur.
   async toggleUserStatus(userId: string, isActive: boolean) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
@@ -159,7 +163,7 @@ export class AdminService {
     if (user.role === 'Admin' && !isActive) {
       throw new ForbiddenException('❌ Impossible de désactiver l\'Admin.');
     }
-
+   //On met à jour uniquement le champ isActive.
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
       data: { isActive },
@@ -198,7 +202,10 @@ export class AdminService {
     // Stats par company
     const s1Count = await this.prisma.user.count({ where: { company: 'S1' } });
     const s2Count = await this.prisma.user.count({ where: { company: 'S2' } });
-
+   
+    //Compte les connexions QuickBooks actives.
+    //gt veut dire “greater than”, donc supérieur à.
+    //Ici, on compte les tokens dont expiresAt est plus grand que la date actuelle.
     const activeQBConnections = await this.prisma.oAuthToken.count({
       where: {
         expiresAt: { gt: new Date() },
@@ -216,8 +223,8 @@ export class AdminService {
       ceoCount,
       managerCount,
       adminCount,
-      s1Count,  // ✅ Stats company S1
-      s2Count,  // ✅ Stats company S2
+      s1Count,  
+      s2Count,  
       activeQBConnections,
       totalInvoices,
       totalExpenses,

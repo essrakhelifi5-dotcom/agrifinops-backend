@@ -6,6 +6,7 @@ export class NormalizeService {
   constructor(private prisma: PrismaService) { }
 
   async normalizeAll(userId: string) {
+    //Normalise les factures de cet utilisateur
     const invoicesResult = await this.normalizeInvoices(userId);
     const expensesResult = await this.normalizeExpenses(userId);
     const categoriesResult = await this.recategorizeTransactionLines();
@@ -19,27 +20,31 @@ export class NormalizeService {
   }
   //Cette fonction parcourt les factures d’un utilisateur, corrige les données manquantes comme le nom ou la date d’échéance, calcule automatiquement le statut de la facture, puis met à jour la base de données.
   async normalizeInvoices(userId: string) {
+    //On récupère toutes les factures de l’utilisateur
     const invoices = await this.prisma.invoice.findMany({
       where: { userId },
     });
-
+   //Compteur des factures corrigées
     let fixed = 0;
-
+   //On parcourt chaque facture.
     for (const inv of invoices) {
+      //updates va contenir seulement les champs à corriger
       const updates: any = {};
-
+      
+     //Si le nom du client est manquant ou vide, on le remplace par "Unknown Customer"
       if (!inv.customerName || inv.customerName.trim() === '') {
         updates.customerName = 'Unknown Customer';
       }
-
+    //Si la date d’échéance =dueDate=date limite pour payer facture) est manquante, on la fixe à 30 jours après la date de création()(issue Date) de la facture.
       if (!inv.dueDate) {
         const due = new Date(inv.issueDate); // on prend la date de création de la facture et on le transforme en objet date
         due.setDate(due.getDate() + 30); // setDate():on modifie la date ; due.getDate() = jour actuel de la date
         updates.dueDate = due; //updates = objet qui contient les corrections on met la nouvelle date dedans
       }
 
-
+    
       const dueDate = inv.dueDate || updates.dueDate;
+      //balance veut dire le montant restant à payer 
       const balance = Number(inv.balance);
 
       if (balance === 0) {
@@ -50,7 +55,7 @@ export class NormalizeService {
         updates.status = 'UNPAID';
       }
 
-      // Vérifie s’il y a des modifications dans l’objet "updates"
+      //updates est un objet qui contient les champs à modifier.
       // Object.keys(updates) retourne les champs modifiés
       // Si la taille > 0, cela signifie qu’au moins une correction a été faite
       if (Object.keys(updates).length > 0) {
@@ -66,7 +71,7 @@ export class NormalizeService {
         // Incrémente le compteur de factures corrigées
         fixed++;
       }
-
+      //il y a au moins une correction ?
       if (Object.keys(updates).length > 0) {
         await this.prisma.invoice.update({
           where: { id: inv.id },
@@ -76,19 +81,23 @@ export class NormalizeService {
       }
     }
 
-    return { message: '✅ Invoices normalisées', fixed };
+    return { message: 'Invoices normalisées', fixed };
   }
 
   async normalizeExpenses(userId: string) {
+    // récupère de la base toutes les dépenses de cet utilisateur.
     const expenses = await this.prisma.expense.findMany({
       where: { userId },
     });
-
+   //compte combien de dépenses ont été corrigées.
     let fixed = 0;
+    //updates est un objet (liste)( au debut elle est vide) qui contient les champs à modifier.
 
     for (const exp of expenses) {
       const updates: any = {};
 
+       //Si la dépense n’a pas de description, mets "Expense" comme description
+       //trim :la description existe, mais elle est vide ou contient seulement des espaces.
       if (!exp.description || exp.description.trim() === '') {
         updates.description = 'Expense';
       }
@@ -96,7 +105,7 @@ export class NormalizeService {
       if (!exp.vendorName) {
         updates.vendorName = 'Unknown Vendor';
       }
-
+        // au moins une correction à faire ?
       if (Object.keys(updates).length > 0) {
         await this.prisma.expense.update({
           where: { id: exp.id },
@@ -106,7 +115,7 @@ export class NormalizeService {
       }
     }
 
-    return { message: '✅ Expenses normalisées', fixed };
+    return { message: ' Expenses normalisées', fixed };
   }
 
   async recategorizeTransactionLines() {
@@ -139,7 +148,7 @@ export class NormalizeService {
       }
     }
 
-    return { message: '✅ TransactionLines recatégorisées', recategorized };
+    return { message: ' TransactionLines recatégorisées', recategorized };
   }
 
  // Fonction qui transforme une catégorie brute (texte) en catégorie standardisée

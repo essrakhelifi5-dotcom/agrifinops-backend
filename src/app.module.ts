@@ -14,7 +14,7 @@ import { QuickbooksModule } from './quickbooks/quickbooks.module';
 import { SyncModule } from './sync/sync.module';
 import { AdminModule } from './admin/admin.module';
 import { PasswordResetModule } from './password-reset/password-reset.module';
-import { ChatbotModule } from './chatbot/chatbot.module';
+
 
 @Module({
   imports: [
@@ -41,8 +41,8 @@ import { ChatbotModule } from './chatbot/chatbot.module';
         port: Number(process.env.MAIL_PORT) || 587,
         secure: false,
         auth: {
-          user: process.env.MAIL_USER,       // ✅ MAIL_USER
-          pass: process.env.MAIL_PASSWORD,   // ✅ MAIL_PASSWORD
+          user: process.env.MAIL_USER,       
+          pass: process.env.MAIL_PASSWORD,   
         },
       },
       defaults: {
@@ -57,7 +57,7 @@ import { ChatbotModule } from './chatbot/chatbot.module';
     SyncModule,
     AdminModule,
     PasswordResetModule,
-    ChatbotModule,
+    
   ],
 
   controllers: [AppController],

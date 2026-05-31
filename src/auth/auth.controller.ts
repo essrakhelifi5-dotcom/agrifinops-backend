@@ -15,7 +15,7 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() body: { email: string; password: string }) {
-    // ✅ CORRECTION : validateUser d'abord, puis login avec le user retourné
+    //  validateUser d'abord, puis login avec le user retourné
     const user = await this.authService.validateUser(body.email, body.password);
     return this.authService.login(user);
   }

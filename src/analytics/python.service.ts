@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import axios from 'axios';
 
 // ─────────────────────────────────────────────
-// PythonService — communication avec FastAPI
+// PythonService — communication  backend avec FastAPI
 // Appelle le service Python sur port 8000
 // ─────────────────────────────────────────────
 @Injectable()
@@ -22,7 +22,7 @@ export class PythonService {
       where: { userId },
       include: { transactionLines: true },
     });
-
+  
     // Prépare les données pour Python
     const expenseItems = expenses.flatMap(exp =>
       exp.transactionLines.map(line => ({
@@ -81,6 +81,7 @@ export class PythonService {
     // Récupère les revenus par mois
     const invoices = await this.prisma.invoice.findMany({
       where: { userId },
+      // de la plus ancienne à la plus récente
       orderBy: { issueDate: 'asc' },
     });
 
@@ -96,7 +97,7 @@ export class PythonService {
       const month = inv.issueDate.toISOString().slice(0, 7);
       revenueByMonth[month] = (revenueByMonth[month] || 0) + Number(inv.totalAmount);
     }
-
+    
     const expenseByMonth: Record<string, number> = {};
     for (const exp of expenses) {
       const month = exp.expenseDate.toISOString().slice(0, 7);
@@ -110,7 +111,9 @@ export class PythonService {
     const totalAR = unpaidInvoices.reduce((sum, inv) => sum + Number(inv.balance), 0);
 
     // Appel Python FastAPI
-    const response = await axios.post(`${this.PYTHON_URL}/financial-ratios`, {
+    //On envoie les données à Python vers:
+
+const response = await axios.post(`${this.PYTHON_URL}/financial-ratios`, {
       monthly_revenues: Object.values(revenueByMonth),
       monthly_expenses: Object.values(expenseByMonth),
       total_ar: totalAR,

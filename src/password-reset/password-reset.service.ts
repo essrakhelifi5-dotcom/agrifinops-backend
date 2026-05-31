@@ -8,8 +8,9 @@ export class PasswordResetService {
   private transporter: nodemailer.Transporter;
 
   constructor(private prisma: PrismaService) {
-    // Configuration du transporteur email
+    // Crée la configuration d’envoi email avec Nodemailer
     this.transporter = nodemailer.createTransport({
+      //Utilise MAIL_HOST depuis .env,Si absent, il utilise Gmail SMTP par défault
       host: process.env.MAIL_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.MAIL_PORT || '587'),
       secure: false,

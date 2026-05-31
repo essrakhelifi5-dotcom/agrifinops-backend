@@ -4,10 +4,10 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtStrategy } from './jwt.strategy';
-import { MailerModule } from '@nestjs-modules/mailer'; // ✅ IMPORT
+import { MailerModule } from '@nestjs-modules/mailer'; 
 
 
-@Module({
+@Module({ //C'est un décorateur il dit  "Voici les éléments qui appartiennent à ce module."
   imports: [
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'votre-secret-jwt-super-securise',

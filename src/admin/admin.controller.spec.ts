@@ -1,3 +1,5 @@
+// fichier de test pour AdminController.
+//importe les outils de test de NestJS.
 import { Test, TestingModule } from '@nestjs/testing';
 import { AdminController } from './admin.controller';
 
@@ -13,6 +15,8 @@ describe('AdminController', () => {
   });
 
   it('should be defined', () => {
+    // Vérifie que le contrôleur est défini (cree correctement).
     expect(controller).toBeDefined();
+    
   });
 });

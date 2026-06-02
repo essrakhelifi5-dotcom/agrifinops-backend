@@ -127,6 +127,8 @@ export class SyncService {
           where: { id: existing.id },
           data: {
             amount: exp.TotalAmt,
+            vendorName: exp.EntityRef?.name || 'Unknown',
+            
             description: exp.PrivateNote || 'Expense',
           },
         });
@@ -138,7 +140,7 @@ export class SyncService {
             expenseDate: new Date(exp.TxnDate),
             amount: exp.TotalAmt,
             description: exp.PrivateNote || 'Expense',
-            ...(exp.EntityRef?.name && { vendorName: exp.EntityRef.name }),
+            vendorName: exp.EntityRef?.name || 'Unknown',
             userId,
           },
         });

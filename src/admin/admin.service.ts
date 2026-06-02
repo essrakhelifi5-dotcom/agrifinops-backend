@@ -79,6 +79,7 @@ export class AdminService {
         role,
         company,  
         isActive: true,
+        
       },
     });
 
@@ -143,7 +144,7 @@ export class AdminService {
     if (user.role === 'Admin') {
       throw new ForbiddenException('❌ Impossible de supprimer l\'Admin.');
     }
-
+//On supprime l’utilisateur de la base de données.
     await this.prisma.user.delete({ where: { id: userId } });
 
     return { message: 'Utilisateur supprimé' };

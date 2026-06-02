@@ -6,13 +6,16 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { validate } from 'deep-email-validator';
 
 
+// 1. VALIDATION EMAIL RÉEL (domaine + jetable + MX)
+// 2. SIGNUP AVEC EMAIL DE BIENVENUE
 
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma: PrismaService,
+    
+    private prisma: PrismaService, 
     private jwtService: JwtService,
-        private mailerService: MailerService, //  INJECTION MAILER
+        private mailerService: MailerService, 
 
   ) {} 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -44,6 +47,7 @@ export class AuthService {
  
     // 3. Vérification approfondie (MX record + jetable)
     try {
+      
       const result = await validate({
         email,
         sender: email,
@@ -84,7 +88,7 @@ export class AuthService {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // SIGNUP AVEC EMAIL DE BIENVENUE
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  async signup(name: string, email: string, password: string, role: string) {
+  async signup(name: string, email: string, password: string, role: string, dateOfBirth: Date ) {
     // 1.  Valider que l'email est réel (BLOQUE si fake)
     await this.validateEmailExists(email);
     // 1️ Vérifier si email existe déjà
@@ -105,8 +109,10 @@ export class AuthService {
         name,
         email,
         password: hashedPassword,
+        dateOfBirth,
         role,
         isActive: true,
+  
       },
     });
 
@@ -258,7 +264,7 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: user.role,
-      },
+      }
     };
   }
 
@@ -300,6 +306,7 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: user.role,
+        dateOfBirth: user.dateOfBirth,
       },
     };
   }

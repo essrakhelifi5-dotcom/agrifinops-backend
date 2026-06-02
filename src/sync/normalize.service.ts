@@ -101,9 +101,11 @@ export class NormalizeService {
       if (!exp.description || exp.description.trim() === '') {
         updates.description = 'Expense';
       }
+        //Si le nom du fournisseur est manquant, mets "Unknown" comme nom du fournisseur
+        
 
-      if (!exp.vendorName) {
-        updates.vendorName = 'Unknown Vendor';
+      if (!exp.vendorName || exp.vendorName.trim() === '') {
+        updates.vendorName = 'Unknown';
       }
         // au moins une correction à faire ?
       if (Object.keys(updates).length > 0) {
@@ -176,6 +178,8 @@ private categorize(rawCategory: string): string {
       lower.includes('wage') || lower.includes('job expenses') ||
       lower.includes('labor') || lower.includes('staff'))
     return 'Labor: Salaries & Job Expenses';
+    
+  
 
   // Si le texte contient des mots liés aux charges (loyer, électricité, etc.)
   if (lower.includes('rent') || lower.includes('utilities') ||
@@ -184,6 +188,7 @@ private categorize(rawCategory: string): string {
       lower.includes('sprinkler') || lower.includes('fountain') ||
       lower.includes('cleaning') || lower.includes('office'))
     return 'Operations: Overhead';
+    
 
   // Si le texte contient des mots liés au marketing
   if (lower.includes('marketing') || lower.includes('advertising') ||
@@ -203,5 +208,6 @@ private categorize(rawCategory: string): string {
 
   // Si aucune condition ne correspond, on retourne "Other"
   return 'Other';
+  
 }
 }

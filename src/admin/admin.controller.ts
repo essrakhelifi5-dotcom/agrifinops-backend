@@ -35,7 +35,8 @@ export class AdminController {
       body.email,
       body.password,
       body.role,
-      body.company,  
+      body.company, 
+      
     );
   }
 
